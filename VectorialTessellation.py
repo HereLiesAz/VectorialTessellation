@@ -3,6 +3,8 @@ from tkinter import scrolledtext, messagebox, font
 import numpy as np
 import math
 import threading
+import os
+import sys
 
 class VectorialTessellator:
     """
@@ -245,6 +247,50 @@ class App(tk.Tk):
         except Exception as e:
             messagebox.showerror("Reconstruction Error", f"An error occurred: {e}")
 
+def run_cli(input_string):
+    """Runs the engine in command-line mode."""
+    print(f"Original String ({len(input_string)} chars):")
+    print(input_string)
+    print("-" * 30)
+
+    tessellator = VectorialTessellator(input_string, update_callback=print)
+    compiled_blueprint = tessellator.generate_blueprint()
+
+    print("\n--- COMPILED BLUEPRINT ---")
+    print(f"\"{compiled_blueprint}\"")
+    print("-" * 30)
+    
+    original_size = len(input_string)
+    compressed_size = len(compiled_blueprint)
+    
+    print("\nSize Analysis:")
+    print(f"  - Original: {original_size} characters")
+    print(f"  - Compressed: {compressed_size} characters")
+    if original_size > 0:
+        ratio = (1 - compressed_size / original_size) * 100
+        print(f"  - Reduction: {ratio:.2f}%")
+        
+    reconstructed_string = VectorialTessellator.reconstruct(compiled_blueprint)
+    print("\nReconstructed String:")
+    print(reconstructed_string)
+    
+    print("\nVerification:")
+    print(f"  - Lossless: {reconstructed_string == input_string}")
+
 if __name__ == "__main__":
-    app = App()
-    app.mainloop()
+    # Check if a display is available to determine execution mode
+    display_available = bool(os.environ.get('DISPLAY', None))
+    
+    # If arguments are passed, always run in CLI mode
+    if len(sys.argv) > 1:
+        input_data = " ".join(sys.argv[1:])
+        run_cli(input_data)
+    elif display_available:
+        app = App()
+        app.mainloop()
+    else:
+        print("No display found. Running in command-line mode with default test string.")
+        print("You can also provide a string as a command-line argument.")
+        print("-" * 30)
+        test_string = "axcxbxcxaxcxbxcxaxcxbxcxaxcxbxcx"
+        run_cli(test_string)
