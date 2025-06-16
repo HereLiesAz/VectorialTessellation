@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import scrolledtext, messagebox, font
+from tkinter import scrolledtext, messagebox, font, filedialog
 import numpy as np
 import math
 import threading
@@ -118,15 +118,23 @@ class VectorialTessellator:
     def reconstruct(compiled_string):
         """Re-paints the starfield from the compiled string blueprint."""
         # Decompile the blueprint string
-        length_part, main_part = compiled_string.split('¬', 1)
-        original_length = int(length_part)
-        key_string, remnant_stream = main_part.split('‡', 1)
+        try:
+            length_part, main_part = compiled_string.split('¬', 1)
+            original_length = int(length_part)
+            key_string, remnant_stream = main_part.split('‡', 1)
+        except ValueError:
+            raise ValueError("Invalid blueprint format. Expected 'length¬key‡remnant'.")
+
         vector_key = key_string.split('§') if key_string else []
         
         canvas = ['\0'] * original_length
         for vector_desc in vector_key:
-            parts = vector_desc.strip('()').split(',')
-            char, width, y1, x1, y2, x2 = parts[0], int(parts[1]), int(parts[2]), int(parts[3]), int(parts[4]), int(parts[5])
+            try:
+                parts = vector_desc.strip('()').split(',')
+                char, width, y1, x1, y2, x2 = parts[0], int(parts[1]), int(parts[2]), int(parts[3]), int(parts[4]), int(parts[5])
+            except (ValueError, IndexError):
+                raise ValueError(f"Malformed vector in key: {vector_desc}")
+
             dx, dy = abs(x2 - x1), -abs(y2 - y1)
             sx, sy = 1 if x1 < x2 else -1, 1 if y1 < y2 else -1
             err, cx, cy = dx + dy, x1, y1
@@ -161,7 +169,12 @@ class App(tk.Tk):
         # Input Frame
         input_frame = tk.Frame(self, padx=10, pady=10, bg="#f0f0f0")
         input_frame.pack(fill=tk.X)
-        tk.Label(input_frame, text="Original String:", bg="#f0f0f0", font=default_font).pack(anchor=tk.W)
+        
+        input_label_frame = tk.Frame(input_frame, bg="#f0f0f0")
+        input_label_frame.pack(fill=tk.X)
+        tk.Label(input_label_frame, text="Original String:", bg="#f0f0f0", font=default_font).pack(side=tk.LEFT)
+        tk.Button(input_label_frame, text="Load from File...", command=self.load_file).pack(side=tk.RIGHT)
+        
         self.input_text = scrolledtext.ScrolledText(input_frame, height=8, font=mono_font, wrap=tk.WORD)
         self.input_text.pack(fill=tk.X, expand=True)
 
@@ -194,6 +207,22 @@ class App(tk.Tk):
         self.status_label.config(text=f"Status: {message.strip()}")
         self.update_idletasks() # Force UI update
 
+    def load_file(self):
+        filepath = filedialog.askopenfilename(
+            title="Open Text File",
+            filetypes=(("Text Files", "*.txt"), ("All files", "*.*"))
+        )
+        if not filepath:
+            return
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                content = f.read()
+                self.input_text.delete("1.0", tk.END)
+                self.input_text.insert("1.0", content)
+                self.log_message(f"Loaded file: {os.path.basename(filepath)}")
+        except Exception as e:
+            messagebox.showerror("File Error", f"Failed to read file:\n{e}")
+
     def run_compression(self):
         original_string = self.input_text.get("1.0", tk.END).strip()
         if not original_string:
@@ -201,6 +230,7 @@ class App(tk.Tk):
             return
 
         self.compress_button.config(state=tk.DISABLED)
+        self.decompress_button.config(state=tk.DISABLED)
         self.blueprint_text.delete("1.0", tk.END)
         self.reconstructed_text.config(state=tk.NORMAL)
         self.reconstructed_text.delete("1.0", tk.END)
@@ -210,20 +240,23 @@ class App(tk.Tk):
         threading.Thread(target=self.compression_thread, args=(original_string,)).start()
 
     def compression_thread(self, original_string):
-        tessellator = VectorialTessellator(original_string, update_callback=self.log_message)
-        compiled_blueprint = tessellator.generate_blueprint()
-        
-        self.blueprint_text.insert("1.0", compiled_blueprint)
-        self.compress_button.config(state=tk.NORMAL)
-        
-        original_size = len(original_string)
-        compressed_size = len(compiled_blueprint)
-        reduction = (1 - compressed_size / original_size) * 100 if original_size > 0 else 0
-        
-        messagebox.showinfo("Analysis Complete", 
-                            f"Original Size: {original_size} chars\n"
-                            f"Compressed Size: {compressed_size} chars\n"
-                            f"Reduction: {reduction:.2f}%")
+        try:
+            tessellator = VectorialTessellator(original_string, update_callback=self.log_message)
+            compiled_blueprint = tessellator.generate_blueprint()
+            
+            self.blueprint_text.insert("1.0", compiled_blueprint)
+            
+            original_size = len(original_string)
+            compressed_size = len(compiled_blueprint)
+            reduction = (1 - compressed_size / original_size) * 100 if original_size > 0 else 0
+            
+            self.log_message(f"Analysis Complete. Reduction: {reduction:.2f}%")
+        except Exception as e:
+            self.log_message(f"Error during compression: {e}")
+        finally:
+            self.compress_button.config(state=tk.NORMAL)
+            self.decompress_button.config(state=tk.NORMAL)
+
 
     def run_reconstruction(self):
         compiled_string = self.blueprint_text.get("1.0", tk.END).strip()
@@ -300,4 +333,3 @@ if __name__ == "__main__":
                 print("No input provided. Exiting.")
         except (EOFError, KeyboardInterrupt):
             print("\nOperation cancelled by user. Exiting.")
-
