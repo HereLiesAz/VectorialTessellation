@@ -289,8 +289,15 @@ if __name__ == "__main__":
         app = App()
         app.mainloop()
     else:
-        print("No display found. Running in command-line mode with default test string.")
-        print("You can also provide a string as a command-line argument.")
-        print("-" * 30)
-        test_string = "axcxbxcxaxcxbxcxaxcxbxcxaxcxbxcx"
-        run_cli(test_string)
+        print("No display found. Running in command-line mode.")
+        # Ask for user input instead of using a default test string.
+        try:
+            input_string = input("Please enter the string to analyze: ")
+            if input_string:
+                print("-" * 30)
+                run_cli(input_string)
+            else:
+                print("No input provided. Exiting.")
+        except (EOFError, KeyboardInterrupt):
+            print("\nOperation cancelled by user. Exiting.")
+
