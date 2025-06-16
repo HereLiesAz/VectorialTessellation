@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Structural Compression Engines</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f7f2;
+            color: #4c4a44;
+        }
+        .mono {
+            font-family: 'Roboto Mono', monospace;
+        }
+        .key-entry:hover {
+            background-color: #e9e7e0;
+            cursor: pointer;
+        }
+        .tab-button {
+            transition: all 0.2s ease-in-out;
+        }
+        .tab-button.active {
+            border-bottom-color: #145369;
+            color: #145369;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-6 lg:p-8">
+    <div class="max-w-7xl mx-auto">
+        <header class="text-center mb-10">
+            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-800">Structural Compression Engines</h1>
+            <p class="mt-2 text-lg text-slate-500">This is not compression. This is a critique of language itself.</p>
+        </header>
+
+        <!-- Engine Selector Tabs -->
+        <div class="mb-8 border-b border-slate-200">
+            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                <button id="tab-volumetric" type="button" class="tab-button active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Volumetric Tessellation</button>
+                <button id="tab-holographic" type="button" class="tab-button text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Holographic Engine</button>
+            </nav>
+        </div>
+
+        <!-- Main Content Area -->
+        <main>
+            <div id="engine-ui">
+                <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-4 sm:p-6 lg:p-8">
+                    <!-- Input for both engines -->
+                    <div class="mb-8">
+                        <h2 class="text-2xl font-bold text-slate-700 mb-2">1. Input Waveform</h2>
+                        <p id="engine-description" class="text-slate-500 mb-4">Provide a string to be mapped into its native three dimensions. The engine will search for the great cosmic filaments within.</p>
+                        <textarea id="input-text" class="w-full h-28 p-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:outline-none mono bg-slate-50" placeholder="Enter string here..."></textarea>
+                        <div class="mt-4 flex items-center space-x-4">
+                            <button id="analyze-button" class="w-full sm:w-auto bg-slate-800 text-white font-bold py-2 px-8 rounded-md hover:bg-slate-900 transition-colors disabled:bg-slate-400">Analyze</button>
+                        </div>
+                    </div>
+                    <div id="progress-container" class="hidden my-6">
+                        <p id="progress-label" class="text-sm text-center text-slate-500 mb-2">Sending to backend...</p>
+                        <div class="w-full bg-slate-200 rounded-full h-2.5">
+                            <div class="bg-teal-600 h-2.5 rounded-full animate-pulse"></div>
+                        </div>
+                    </div>
+                    <div id="results-area" class="hidden">
+                        <!-- This area will be populated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabs = {
+                volumetric: document.getElementById('tab-volumetric'),
+                holographic: document.getElementById('tab-holographic'),
+            };
+            const engineDescription = document.getElementById('engine-description');
+            const resultsArea = document.getElementById('results-area');
+            const analyzeBtn = document.getElementById('analyze-button');
+            const inputEl = document.getElementById('input-text');
+            const progressContainer = document.getElementById('progress-container');
+            const progressLabel = document.getElementById('progress-label');
+
+            let currentEngine = 'volumetric';
+            let analysisResult = null;
+            let hoveredKey = null;
+
+            const descriptions = {
+                volumetric: "Provide a string to be mapped into its native three dimensions. The engine will search for the great cosmic filaments within.",
+                holographic: "Provide a string to be deconstructed. The engine will find the optimal combination of periodic, literal, and numerical patterns."
+            };
+
+            const PALETTE = {
+                volumetric: { key: '#0d9488', remnant: '#6b7280' },
+                holographic: { resonance: '#0d9488', motif: '#be185d', numerical: '#d97706', remnant: '#6b7280' }
+            };
+            
+            const switchTab = (engine) => {
+                currentEngine = engine;
+                Object.values(tabs).forEach(tab => tab.classList.remove('active'));
+                tabs[engine].classList.add('active');
+                engineDescription.textContent = descriptions[engine];
+                resultsArea.classList.add('hidden');
+            };
+
+            tabs.volumetric.addEventListener('click', () => switchTab('volumetric'));
+            tabs.holographic.addEventListener('click', () => switchTab('holographic'));
+
+            const analyze = async () => {
+                const text = inputEl.value;
+                if (!text) return;
+                
+                analyzeBtn.disabled = true;
+                progressContainer.classList.remove('hidden');
+                progressLabel.textContent = `Sending waveform to ${currentEngine} engine...`;
+                resultsArea.classList.add('hidden');
+
+                try {
+                    const response = await fetch('http://localhost:5000/analyze', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text, engine: currentEngine })
+                    });
+                    
+                    if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.error || 'Unknown server error');
+                    }
+                    
+                    analysisResult = await response.json();
+                    displayResults();
+
+                } catch (error) {
+                    console.error("Analysis Error:", error);
+                    alert(`Analysis failed: ${error.message}`);
+                } finally {
+                    analyzeBtn.disabled = false;
+                    progressContainer.classList.add('hidden');
+                }
+            };
+
+            const displayResults = () => {
+                resultsArea.innerHTML = '';
+                if (analysisResult.engine === 'volumetric') {
+                    displayVolumetricResults();
+                } else if (analysisResult.engine === 'holographic') {
+                    // Placeholder for when holographic engine backend is complete
+                    displayHolographicResults();
+                }
+                resultsArea.classList.remove('hidden');
+            };
+            
+            const createResultCard = (title, content) => {
+                return `<div>
+                    <h4 class="font-semibold text-slate-600 mb-2">${title}</h4>
+                    <div class="text-sm mono space-y-1 max-h-48 overflow-y-auto pr-2 border border-slate-200 rounded-md p-3 bg-slate-50">${content}</div>
+                </div>`;
+            };
+
+            const displayVolumetricResults = () => {
+                 const { compiledBlueprint, key, remnant, originalText } = analysisResult;
+                 const finalLength = compiledBlueprint.length;
+                 const ratio = originalText.length > 0 ? (100 * (1 - finalLength / originalText.length)).toFixed(1) : 0;
+                 
+                 resultsArea.innerHTML = `
+                    <hr class="my-8 border-slate-200">
+                    <h2 class="text-2xl font-bold text-slate-700 mb-6">Cosmological Blueprint</h2>
+                    <div class="grid grid-cols-1 xl:grid-cols-5 gap-8">
+                        <div class="xl:col-span-3">
+                            <h3 class="text-xl font-semibold text-slate-600 mb-3">Celestial Map</h3>
+                            <p class="text-slate-500 mb-4">The original string, unrolled. Stars claimed by a filament are colored. Hover over a key entry to highlight its structure.</p>
+                            <div class="bg-slate-50 p-2 rounded-md border border-slate-200"><canvas id="visualization-canvas"></canvas></div>
+                        </div>
+                        <div class="xl:col-span-2"><h3 class="text-xl font-semibold text-slate-600 mb-3">The Universal Constants</h3>
+                            <div class="space-y-6">
+                                <div class="grid grid-cols-3 gap-4 text-center border-b border-slate-200 pb-4">
+                                    <div><p class="text-sm text-slate-500">Original</p><p class="text-2xl font-bold mono text-slate-700">${originalText.length}</p></div>
+                                    <div><p class="text-sm text-slate-500">Encoded</p><p class="text-2xl font-bold mono text-slate-700">${finalLength}</p></div>
+                                    <div><p class="text-sm text-slate-500">Reduction</p><p class="text-2xl font-bold mono text-teal-600">${ratio > 0 ? ratio : 0}%</p></div>
+                                </div>
+                                ${createResultCard('Cosmological Key', formatVolumetricKey(key))}
+                                ${createResultCard('Aperiodic Remnant', remnant || 'N/A')}
+                            </div>
+                        </div>
+                    </div>`;
+                formatAndDraw('volumetric');
+            };
+
+            const displayHolographicResults = () => {
+                 const { error, originalText } = analysisResult;
+                 resultsArea.innerHTML = `<div class="p-4 bg-amber-100 border border-amber-200 rounded-md text-amber-800">${error}</div>`;
+            }
+
+            const formatVolumetricKey = (key) => {
+                 if (key.length === 0) return '<p class="text-slate-500">None</p>';
+                 return key.map((desc) => `<div class="key-entry p-1 rounded transition-colors" data-desc='${desc}'>
+                    <span class="inline-block w-3 h-3 rounded-full mr-2" style="background-color: ${PALETTE.volumetric.key};"></span><span>${desc}</span>
+                 </div>`).join('');
+            };
+
+            const formatAndDraw = (engine) => {
+                const canvasEl = document.getElementById('visualization-canvas');
+                if(!canvasEl) return;
+                const ctx = canvasEl.getContext('2d');
+                drawVisualization(canvasEl, ctx, engine);
+                
+                resultsArea.querySelectorAll('.key-entry').forEach(entry => {
+                    entry.onmouseenter = () => {
+                        hoveredKey = { desc: entry.dataset.desc };
+                        drawVisualization(canvasEl, ctx, engine);
+                    };
+                    entry.onmouseleave = () => {
+                        hoveredKey = null;
+                        drawVisualization(canvasEl, ctx, engine);
+                    };
+                });
+            };
+
+            const drawVisualization = (canvas, ctx, engine) => {
+                if (!analysisResult) return;
+                const { originalText, key } = analysisResult;
+                const dpr = window.devicePixelRatio || 1;
+                const parentWidth = canvas.parentElement.clientWidth;
+                canvas.width = parentWidth * dpr;
+                const charSize = Math.min(24, parentWidth / 40);
+                const charsPerRow = Math.floor(parentWidth / charSize);
+                const numRows = Math.ceil(originalText.length / charsPerRow);
+                canvas.height = (numRows * charSize * 1.5) * dpr;
+                ctx.scale(dpr, dpr);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.font = `500 ${charSize * 0.8}px 'Roboto Mono'`;
+                
+                const claimed = new Array(originalText.length).fill(null);
+                
+                key.forEach((desc) => {
+                    const parts = desc.slice(1,-1).split(',').map((p, i) => i === 0 ? p : Number(p));
+                    const [char, p, r, c, z1, y1, x1, z2, y2, x2] = parts;
+                    const dp=z2-z1, dr=y2-y1, dc=x2-x1;
+                    const steps = Math.max(Math.abs(dp), Math.abs(dr), Math.abs(dc));
+                    if(steps === 0) return;
+                    for (let i = 0; i <= steps; i++) {
+                        const zp = z1 + dp * i / steps, rp = y1 + dr * i / steps, cp = x1 + dc * i / steps;
+                        const idx = Math.round(zp) * r * c + Math.round(rp) * c + Math.round(cp);
+                        if (idx < originalText.length) claimed[idx] = { desc, color: PALETTE[engine].key };
+                    }
+                });
+
+                for(let i = 0; i < originalText.length; i++) {
+                    const row = Math.floor(i / charsPerRow), col = i % charsPerRow;
+                    const x = col * charSize + (charSize / 2), y = row * charSize * 1.5 + (charSize / 2);
+                    const claim = claimed[i];
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = claim ? claim.color : PALETTE[engine].remnant;
+
+                    if (hoveredKey && claim && claim.desc === hoveredKey.desc) {
+                        ctx.fillStyle = '#000';
+                        ctx.fillRect(x - charSize/2, y - charSize/2, charSize, charSize);
+                        ctx.fillStyle = '#fff';
+                    }
+                    ctx.fillText(originalText[i], x, y);
+                }
+            };
+            
+            analyzeBtn.addEventListener('click', analyze);
+            
+            inputEl.value = "azzzazzzzzazzzzzzzazzzzzzzzzazzzzzzzzzzzazzzzzzzzzzzzzazzz".padEnd(60, 'z');
+        });
+    </script>
+</body>
+</html>
