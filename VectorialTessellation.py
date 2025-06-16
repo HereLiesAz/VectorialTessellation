@@ -1,5 +1,4 @@
 import numpy as np
-from collections import defaultdict
 import math
 
 class VectorialTessellator:
@@ -160,7 +159,7 @@ class VectorialTessellator:
 
     def generate_blueprint(self):
         """
-        Generates the final Vector Key and Remnant Stream.
+        Generates the final Vector Key and Remnant Stream as a single compiled string.
         """
         candidates = self.generate_all_candidates()
         vector_key = self.select_optimal_vectors(candidates)
@@ -170,23 +169,30 @@ class VectorialTessellator:
         for i, char in enumerate(self.original_text):
             if not self.claimed_positions[i]:
                 remnant_stream += char
-                
-        return {
-            "vector_key": vector_key,
-            "remnant_stream": remnant_stream
-        }
+        
+        # Compile the blueprint into a single string
+        # Format: vector1§vector2§...‡remnant_stream
+        vector_key_string = "§".join(vector_key)
+        return f"{vector_key_string}‡{remnant_stream}"
         
     @staticmethod
-    def reconstruct(blueprint, original_length):
+    def reconstruct(compiled_string, original_length):
         """
-        Re-paints the starfield from the blueprint.
+        Re-paints the starfield from the compiled string blueprint.
         """
-        print("\nReconstructing from blueprint...")
+        print("\nReconstructing from compiled blueprint...")
+
+        # Decompile the blueprint string
+        parts = compiled_string.split('‡', 1)
+        key_string = parts[0]
+        remnant_stream = parts[1] if len(parts) > 1 else ""
+        vector_key = key_string.split('§') if key_string else []
+        
         # Prepare the canvas
         canvas = ['\0'] * original_length
         
         # Draw the constellations from the Vector Key
-        for vector_desc in blueprint['vector_key']:
+        for vector_desc in vector_key:
             # Parse the vector description
             parts = vector_desc.strip('()').split(',')
             char, width, y1, x1, y2, x2 = parts[0], int(parts[1]), int(parts[2]), int(parts[3]), int(parts[4]), int(parts[5])
@@ -212,7 +218,7 @@ class VectorialTessellator:
                     cy += sy
 
         # Fill in the stardust from the Remnant Stream
-        remnant_iter = iter(blueprint['remnant_stream'])
+        remnant_iter = iter(remnant_stream)
         for i in range(original_length):
             if canvas[i] == '\0':
                 try:
@@ -235,32 +241,25 @@ if __name__ == "__main__":
 
     # Initialize and run the tessellation process
     tessellator = VectorialTessellator(test_string)
-    blueprint = tessellator.generate_blueprint()
+    compiled_blueprint = tessellator.generate_blueprint()
 
-    print("\n--- BLUEPRINT ---")
-    print("Vector Key (The Constellations):")
-    for vector in blueprint['vector_key']:
-        print(f"  - {vector}")
-
-    print("\nRemnant Stream (The Stardust):")
-    print(f"  \"{blueprint['remnant_stream']}\"")
+    print("\n--- COMPILED BLUEPRINT ---")
+    print(f"\"{compiled_blueprint}\"")
     print("-" * 30)
     
     # Calculate sizes for comparison
     original_size = len(test_string)
-    vector_key_size = sum(len(v) for v in blueprint['vector_key'])
-    remnant_size = len(blueprint['remnant_stream'])
-    compressed_size = vector_key_size + remnant_size
+    compressed_size = len(compiled_blueprint)
     
     print("\nSize Analysis:")
     print(f"  - Original: {original_size} characters")
-    print(f"  - Compressed: {compressed_size} characters (Key: {vector_key_size}, Remnant: {remnant_size})")
+    print(f"  - Compressed: {compressed_size} characters")
     if original_size > 0:
         ratio = (1 - compressed_size / original_size) * 100
         print(f"  - Reduction: {ratio:.2f}%")
         
     # Reconstruct and verify
-    reconstructed_string = VectorialTessellator.reconstruct(blueprint, original_size)
+    reconstructed_string = VectorialTessellator.reconstruct(compiled_blueprint, original_size)
     print("\nReconstructed String:")
     print(reconstructed_string)
     
