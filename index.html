@@ -57,12 +57,13 @@
                         <textarea id="input-text" class="w-full h-28 p-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:outline-none mono bg-slate-50" placeholder="Enter string here..."></textarea>
                         <div class="mt-4 flex items-center space-x-4">
                             <button id="analyze-button" class="w-full sm:w-auto bg-slate-800 text-white font-bold py-2 px-8 rounded-md hover:bg-slate-900 transition-colors disabled:bg-slate-400">Analyze</button>
+                            <button id="cancel-button" class="hidden w-full sm:w-auto bg-red-700 text-white font-bold py-2 px-8 rounded-md hover:bg-red-800">Cancel</button>
                         </div>
                     </div>
                     <div id="progress-container" class="hidden my-6">
                         <p id="progress-label" class="text-sm text-center text-slate-500 mb-2">Sending to backend...</p>
                         <div class="w-full bg-slate-200 rounded-full h-2.5">
-                            <div class="bg-teal-600 h-2.5 rounded-full animate-pulse"></div>
+                            <div id="progress-bar" class="bg-teal-600 h-2.5 rounded-full animate-pulse"></div>
                         </div>
                     </div>
                     <div id="results-area" class="hidden">
@@ -82,13 +83,16 @@
             const engineDescription = document.getElementById('engine-description');
             const resultsArea = document.getElementById('results-area');
             const analyzeBtn = document.getElementById('analyze-button');
+            const cancelBtn = document.getElementById('cancel-button');
             const inputEl = document.getElementById('input-text');
             const progressContainer = document.getElementById('progress-container');
+            const progressBar = document.getElementById('progress-bar');
             const progressLabel = document.getElementById('progress-label');
 
             let currentEngine = 'volumetric';
             let analysisResult = null;
             let hoveredKey = null;
+            let analysisController = null;
 
             const descriptions = {
                 volumetric: "Provide a string to be mapped into its native three dimensions. The engine will search for the great cosmic filaments within.",
@@ -116,15 +120,20 @@
                 if (!text) return;
                 
                 analyzeBtn.disabled = true;
+                cancelBtn.classList.remove('hidden');
                 progressContainer.classList.remove('hidden');
+                progressBar.classList.add('animate-pulse');
                 progressLabel.textContent = `Sending waveform to ${currentEngine} engine...`;
                 resultsArea.classList.add('hidden');
+                
+                analysisController = new AbortController();
 
                 try {
                     const response = await fetch('http://localhost:5000/analyze', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text, engine: currentEngine })
+                        body: JSON.stringify({ text, engine: currentEngine }),
+                        signal: analysisController.signal
                     });
                     
                     if (!response.ok) {
@@ -136,11 +145,19 @@
                     displayResults();
 
                 } catch (error) {
-                    console.error("Analysis Error:", error);
-                    alert(`Analysis failed: ${error.message}`);
+                    if (error.name === 'AbortError') {
+                        console.log('Fetch aborted');
+                        progressLabel.textContent = 'Analysis Cancelled.';
+                    } else {
+                        console.error("Analysis Error:", error);
+                        alert(`Analysis failed: ${error.message}`);
+                    }
                 } finally {
                     analyzeBtn.disabled = false;
                     progressContainer.classList.add('hidden');
+                    cancelBtn.classList.add('hidden');
+                    progressBar.classList.remove('animate-pulse');
+                    analysisController = null;
                 }
             };
 
@@ -149,7 +166,6 @@
                 if (analysisResult.engine === 'volumetric') {
                     displayVolumetricResults();
                 } else if (analysisResult.engine === 'holographic') {
-                    // Placeholder for when holographic engine backend is complete
                     displayHolographicResults();
                 }
                 resultsArea.classList.remove('hidden');
@@ -192,7 +208,7 @@
             };
 
             const displayHolographicResults = () => {
-                 const { error, originalText } = analysisResult;
+                 const { error } = analysisResult;
                  resultsArea.innerHTML = `<div class="p-4 bg-amber-100 border border-amber-200 rounded-md text-amber-800">${error}</div>`;
             }
 
@@ -268,6 +284,11 @@
             };
             
             analyzeBtn.addEventListener('click', analyze);
+            cancelBtn.addEventListener('click', () => {
+                if(analysisController) {
+                    analysisController.abort();
+                }
+            });
             
             inputEl.value = "azzzazzzzzazzzzzzzazzzzzzzzzazzzzzzzzzzzazzzzzzzzzzzzzazzz".padEnd(60, 'z');
         });
